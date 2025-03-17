@@ -6,7 +6,7 @@ import fs from 'node:fs/promises';
 import * as readline from 'node:readline/promises';
 import * as core from '@actions/core';
 import * as constants from './constants.js';
-import { InputName, OutputName } from './constants.js';
+import { InputName, OutputName, NotFoundBehaviour } from './constants.js';
 
 export const TEXT_ENCODING = 'utf8';
 
@@ -102,13 +102,26 @@ async function extract(logfile: PathLike): Promise<Chart[]> {
 export async function main(): Promise<void> {
   // Initialize input parameters...
   const logfile = core.getInput(InputName.CT_LOG_FILE, { required: true });
+  let notFoundBehaviour = core.getInput(InputName.IF_NO_CHARTS_FOUND);
+  if (!notFoundBehaviour) {
+    notFoundBehaviour = NotFoundBehaviour.WARN;
+  }
 
   core.info(`Processing file "${logfile}"...`);
   try {
     // Extract charts from log file...
     const charts = await extract(logfile);
     if (charts.length < 1) {
-      throw new Error('No charts found!');
+      switch (notFoundBehaviour) {
+        case NotFoundBehaviour.IGNORE:
+          core.info(constants.NO_CHARTS_FOUND_MESSAGE);
+          break;
+        case NotFoundBehaviour.WARN:
+          core.warning(constants.NO_CHARTS_FOUND_MESSAGE);
+          break;
+        case NotFoundBehaviour.ERROR:
+          throw new Error(constants.NO_CHARTS_FOUND_MESSAGE);
+      }
     }
 
     // Output computed results...
