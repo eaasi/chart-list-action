@@ -1,6 +1,6 @@
 {
   "name": "chart-list-action",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "description": "GitHub Action for extracting details about processed charts from chart-testing logs",
   "author": "Oleg Stobbe",
   "license": "Apache-2.0",
