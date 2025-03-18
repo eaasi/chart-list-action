@@ -1,0 +1,20 @@
+name: 'chart-list-action'
+description: |
+  Action for extracting details about processed charts from chart-testing logs
+branding:
+  icon: file-text
+  color: blue
+inputs:
+  ct-log-file:
+    description: 'Log file to extract processed charts from'
+    required: true
+  if-no-charts-found:
+    description: 'The desired behaviour if no chart are found'
+    default: 'warn'  # supported options: warn, error, ignore
+    required: false
+outputs:
+  charts:
+    description: 'List of all processed charts and their basic details'
+runs:
+  using: 'node20'
+  main: './dist/index.js'
