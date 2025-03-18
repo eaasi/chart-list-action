@@ -59,3 +59,40 @@ describe('extract charts (+)', () => {
     outputs.toHaveBeenCalledWith(OutputName.CHARTS, data.charts);
   });
 });
+
+describe('extract charts (-)', () => {
+  const charts = utils.makeCharts(utils.getRandomNumber(3, 6));
+  const LOGS: ChartTestingLog[] = [
+    ChartTestingLog.create('incomplete.log', charts.slice(0, charts.length - 2)),
+    ChartTestingLog.create('ill-formed-v1.log', charts, (c) => ` ${c.name}`),
+    ChartTestingLog.create('ill-formed-v2.log', charts, (c) => ` ${c.name} => ()`),
+    ChartTestingLog.create('ill-formed-v3.log', charts, (c) => ` ${c.name} => (version: ${c.version}, path: ${c.path})`),
+    ChartTestingLog.create('ill-formed-v4.log', charts, (c) => ` ${c.name} => ("version":"${c.version}","path":"${c.path}")`),
+    ChartTestingLog.create('ill-formed-v5.log', charts, (c) => ` ${c.name} => (version = "${c.version}", path = "${c.path}")`),
+  ];
+
+  test.fails.each(LOGS)('from $name', async (data) => {
+    const logfile = `${WORKDIR}/chart-testing.log`;
+
+    // Mock input parameters
+    const inputs = vi.mocked(core.getInput);
+    inputs.mockImplementation((name) => {
+      switch (name) {
+        case InputName.CT_LOG_FILE:
+          return logfile;
+        default:
+          return '';
+      }
+    });
+
+    // Prepare input data
+    fs.writeFileSync(logfile, data.render());
+
+    // Run action
+    await main();
+
+    // Check output parameters
+    const outputs = expect(core.setOutput);
+    outputs.toHaveBeenCalledWith(OutputName.CHARTS, charts);
+  });
+});
