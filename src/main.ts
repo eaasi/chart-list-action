@@ -19,6 +19,7 @@ export interface Chart {
 const enum ParserState {
   SEARCHING,
   PARSING,
+  FINISHED,
 }
 
 async function extract(logfile: PathLike): Promise<Chart[]> {
@@ -31,32 +32,30 @@ async function extract(logfile: PathLike): Promise<Chart[]> {
 
     try {
       let state = ParserState.SEARCHING;
-      let prevline = undefined;
+      let prevline: string | undefined = undefined;
+      let numChartsFailed = 0;
 
       core.info('Searching for chart entries:');
       for await (const line of reader) {
-        core.info('> ' + line);
-        if (line.startsWith(constants.SECTION_SEPARATOR_PREFIX)) {
-          prevline = prevline?.trimStart();
-          if (prevline?.startsWith(constants.CHART_SECTION_HEADING)) {
-            core.info('');
-            core.info('Found chart entries!');
-            state = ParserState.PARSING;
-            break;
+        if (state === ParserState.SEARCHING) {
+          core.info('> ' + line);
+          if (line.startsWith(constants.SECTION_SEPARATOR_PREFIX)) {
+            prevline = prevline?.trimStart();
+            if (prevline?.startsWith(constants.CHART_SECTION_HEADING)) {
+              core.info('');
+              core.info('Found chart entries!');
+              core.info('');
+              core.info('Parsing chart details:');
+              state = ParserState.PARSING;
+            }
           }
+
+          prevline = line;
         }
-
-        prevline = line;
-      }
-
-      if (state == ParserState.PARSING) {
-        let numChartsFailed = 0;
-
-        core.info('');
-        core.info('Parsing chart details:');
-        for await (const line of reader) {
+        else if (state === ParserState.PARSING) {
           if (line.startsWith(constants.SECTION_SEPARATOR_PREFIX)) {
             core.info('-> Found end of chart list, stopping.');
+            state = ParserState.FINISHED;
             break;
           }
 
@@ -78,7 +77,14 @@ async function extract(logfile: PathLike): Promise<Chart[]> {
             ++numChartsFailed;
           }
         }
+      }
 
+      if (state === ParserState.PARSING) {
+        core.info('-> End of file reached, stopping.');
+        state = ParserState.FINISHED;
+      }
+
+      if (state === ParserState.FINISHED) {
         core.info('');
         core.info('Finished parsing chart details:');
         core.info(`-> ${charts.length} chart(s) parsed, ${numChartsFailed} failed`);
